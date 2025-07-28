@@ -43,6 +43,9 @@ jobs:
           path: dist/
           retention-days: 7
 
+      - name: Debug
+        run: cat /home/runner/work/_temp/s3cmd.conf
+
       - name: Set up S3cmd cli tool
         uses: s3-actions/s3cmd@v2.0.0
         with:
