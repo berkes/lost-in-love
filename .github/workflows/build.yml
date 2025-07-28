@@ -53,4 +53,4 @@ jobs:
 
       - name: Deploy to object storage
         run: |
-          s3cmd sync --recursive --delete-removed --acl-public dist s3://love.berk.es/
+          s3cmd sync --recursive --delete-removed --acl-public dist/* s3://love.berk.es/
