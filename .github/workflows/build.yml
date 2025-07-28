@@ -43,9 +43,6 @@ jobs:
           path: dist/
           retention-days: 7
 
-      - name: Debug
-        run: cat /home/runner/work/_temp/s3cmd.conf
-
       - name: Set up S3cmd cli tool
         uses: s3-actions/s3cmd@v2.0.0
         with:
@@ -53,6 +50,9 @@ jobs:
           region: nl-ams
           access_key: ${{ secrets.SCALEWAY_ACCESS_KEY }}
           secret_key: ${{ secrets.SCALEWAY_SECRET_KEY }}
+
+      - name: Debug
+        run: cat /home/runner/work/_temp/s3cmd.conf
 
       - name: Deploy to object storage
         run: |
