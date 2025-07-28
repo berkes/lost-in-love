@@ -2,7 +2,7 @@ import p5 from "p5";
 import seedrandom from "seedrandom";
 
 type ColorType = "HSL" | "BW";
-const colorType = "BW" as ColorType;
+const colorType = "HSL" as ColorType;
 
 const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
   return (p: p5) => {
