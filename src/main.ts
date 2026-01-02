@@ -17,13 +17,13 @@ const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
       p.createCanvas(size, size, canvas);
       p.colorMode(p.HSL);
       switch (colorType) {
-        case "HSL": 
+        case "HSL":
           colors = new HSLColorScheme(
             p.color(336, 80, 47, 100),
             p.color(40, 100, 57, 100),
             p.color(336, 80, 47, 100),
             rng,
-            p
+            p,
           );
           break;
         case "BW":
@@ -35,7 +35,9 @@ const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
 
       setCardColor(colors.backgroundColor);
       disableButtons();
-      const downloadButton = document.getElementById("save") as HTMLButtonElement;
+      const downloadButton = document.getElementById(
+        "save",
+      ) as HTMLButtonElement;
       downloadButton.addEventListener("click", () => saveImage(p, me, you));
       maze = new Maze(18, 18, 4, colors, rng, p.width, p.height);
     };
@@ -43,7 +45,7 @@ const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
     p.draw = () => {
       p.background(maze.colors.backgroundColor);
       maze.draw(p);
-    }
+    };
   };
 };
 
@@ -70,7 +72,10 @@ if (obfuscatedData) {
     you = decoded.you || "Juliet";
     message = decoded.message || "";
   } catch (error) {
-    console.error("Failed to decode obfuscated data, falling back to individual parameters:", error);
+    console.error(
+      "Failed to decode obfuscated data, falling back to individual parameters:",
+      error,
+    );
     me = searchParams.get("me")?.trim() || "Romeo";
     you = searchParams.get("you")?.trim() || "Juliet";
     message = searchParams.get("message")?.trim() || "";
@@ -83,11 +88,17 @@ if (obfuscatedData) {
 }
 
 const seed = `${me} - ${you}`;
-const meField: HTMLInputElement = document.getElementById("me") as HTMLInputElement;
+const meField: HTMLInputElement = document.getElementById(
+  "me",
+) as HTMLInputElement;
 meField.value = me;
-const youField: HTMLInputElement = document.getElementById("you") as HTMLInputElement;
+const youField: HTMLInputElement = document.getElementById(
+  "you",
+) as HTMLInputElement;
 youField.value = you;
-const messageField: HTMLInputElement = document.getElementById("message") as HTMLInputElement;
+const messageField: HTMLInputElement = document.getElementById(
+  "message",
+) as HTMLInputElement;
 if (messageField) {
   messageField.value = message;
 }
@@ -103,32 +114,33 @@ const mazeForm = document.getElementById("mazeForm") as HTMLFormElement;
 if (mazeForm) {
   mazeForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    
+
     const meField = document.getElementById("me") as HTMLInputElement;
     const youField = document.getElementById("you") as HTMLInputElement;
     const messageField = document.getElementById("message") as HTMLInputElement;
-    
+
     const me = meField.value.trim() || "Romeo";
     const you = youField.value.trim() || "Juliet";
     const message = messageField.value.trim();
-    
+
     // Create obfuscated data
     const obfuscatedData = encodeData({ me, you, message });
-    
+
     // Create URL with obfuscated data
     const baseUrl = new URL(window.location.origin + window.location.pathname);
     baseUrl.searchParams.set("data", obfuscatedData);
-    
+
     // Navigate to the obfuscated URL
     window.location.href = baseUrl.toString();
   });
 }
-const modalClose = document.querySelector("#about-modal button") as HTMLButtonElement;
+const modalClose = document.querySelector(
+  "#about-modal button",
+) as HTMLButtonElement;
 modalClose.addEventListener("click", () => {
   const modal = document.getElementById("about-modal") as HTMLDialogElement;
   modal?.close();
 });
-
 
 setTitle(me, you);
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
@@ -177,7 +189,7 @@ function setCardColor(color: p5.Color) {
   const containerElement = document.getElementById("canvas");
   const container = containerElement as HTMLElement;
   if (container) {
-    container.style.backgroundColor = color.toString('rgba');
+    container.style.backgroundColor = color.toString("rgba");
   }
 }
 
@@ -271,7 +283,7 @@ class Cell implements CellInterface {
     public width: number,
     public height: number,
     public colorScheme: ColorScheme,
-  ) { }
+  ) {}
 
   draw(p: p5) {
     const x = this.col * this.width;
@@ -314,11 +326,15 @@ class Cell implements CellInterface {
     p5.strokeWeight(this.strokeWeight());
     p5.line(x1, y1, x2, y2);
     p5.pop();
-  };
+  }
 
   isBorder(totalCols: number, totalRows: number): boolean {
-    return this.col === 0 || this.col === totalCols - 1 ||
-      this.row === 0 || this.row === totalRows - 1;
+    return (
+      this.col === 0 ||
+      this.col === totalCols - 1 ||
+      this.row === 0 ||
+      this.row === totalRows - 1
+    );
   }
 }
 
@@ -327,7 +343,7 @@ enum IconPlacement {
   TOPBORDER,
   RIGHTBORDER,
   BOTTOMBORDER,
-  LEFTBORDER
+  LEFTBORDER,
 }
 
 // Heart class for icons
@@ -337,8 +353,8 @@ class Heart {
     public col: number,
     public size: number,
     public colorScheme: ColorScheme,
-    private readonly placement: IconPlacement = IconPlacement.CENTER
-  ) { }
+    private readonly placement: IconPlacement = IconPlacement.CENTER,
+  ) {}
 
   draw(p5: p5) {
     const size = this.size;
@@ -378,16 +394,22 @@ class Heart {
 
     // Left curve
     p5.bezierVertex(
-      centerX - halfSize * widthAdjustment, centerY - halfSize - heightAdjustment,
-      centerX - size, centerY - heightAdjustment,
-      centerX, centerY + halfSize - heightAdjustment
+      centerX - halfSize * widthAdjustment,
+      centerY - halfSize - heightAdjustment,
+      centerX - size,
+      centerY - heightAdjustment,
+      centerX,
+      centerY + halfSize - heightAdjustment,
     );
 
     // Right curve
     p5.bezierVertex(
-      centerX + size, centerY - heightAdjustment,
-      centerX + halfSize * widthAdjustment, centerY - halfSize - heightAdjustment,
-      centerX, topCenterY
+      centerX + size,
+      centerY - heightAdjustment,
+      centerX + halfSize * widthAdjustment,
+      centerY - halfSize - heightAdjustment,
+      centerX,
+      topCenterY,
     );
 
     p5.endShape(p5.CLOSE);
@@ -418,13 +440,9 @@ class Maze {
   private initializeCells() {
     for (let row = 0; row < this.rows; row++) {
       for (let col = 0; col < this.cols; col++) {
-        this.cells.push(new Cell(
-          col,
-          row,
-          this.cellWidth(),
-          this.cellHeight(),
-          this.colors
-        ));
+        this.cells.push(
+          new Cell(col, row, this.cellWidth(), this.cellHeight(), this.colors),
+        );
       }
     }
   }
@@ -448,19 +466,18 @@ class Maze {
     // Setup the drawing area with translation to account for padding
     const margin = {
       x: this.cellWidth() * (this.paddingCells / 2),
-      y: this.cellHeight() * (this.paddingCells / 2)
+      y: this.cellHeight() * (this.paddingCells / 2),
     };
 
     p.push();
     p.translate(margin.x, margin.y);
 
     // Draw all cells
-    this.cells.forEach(cell => cell.draw(p));
+    this.cells.forEach((cell) => cell.draw(p));
 
     // Draw icons if they exist
     this.centerIcon?.draw(p);
     this.borderIcon?.draw(p);
-
 
     // Add a love.berk.es url to the bottom right corner
     p.fill(this.colors.foregroundColor);
@@ -585,13 +602,21 @@ class Maze {
           startRow,
           startCol,
           this.cellHeight(),
-          this.colors
+          this.colors,
         );
       }
 
       // Initialize the starting area (3x3 grid of open cells)
       const startCells = [
-        [0, 0], [1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]
+        [0, 0],
+        [1, 0],
+        [0, 1],
+        [-1, 0],
+        [0, -1],
+        [1, 1],
+        [-1, 1],
+        [1, -1],
+        [-1, -1],
       ];
 
       let lastIdx = startCol + startRow * this.cols;
@@ -618,7 +643,9 @@ class Maze {
     return Math.floor(this.rng() * (max - min + 1)) + min;
   }
 
-  private chooseRandomNeighbor(neighbors: [number, number][]): [number, number] {
+  private chooseRandomNeighbor(
+    neighbors: [number, number][],
+  ): [number, number] {
     return neighbors[Math.floor(this.rng() * neighbors.length)];
   }
 
@@ -629,9 +656,9 @@ class Maze {
   private getUnvisitedNeighbors(col: number, row: number): [number, number][] {
     const directions = [
       [0, -1], // top
-      [1, 0],  // right
-      [0, 1],  // bottom
-      [-1, 0]  // left
+      [1, 0], // right
+      [0, 1], // bottom
+      [-1, 0], // left
     ];
 
     return directions
@@ -649,8 +676,8 @@ async function copyToClipboard() {
       // Write the Blob to the clipboard
       navigator.clipboard.write([
         new ClipboardItem({
-          'image/png': blob
-        })
+          "image/png": blob,
+        }),
       ]);
     } catch (err) {
       writeNotification(`Failed to copy ${err}`, "error");
@@ -658,14 +685,12 @@ async function copyToClipboard() {
   });
 }
 
-
-
 function canvasAsBlob(): Promise<Blob> {
   return new Promise((resolve, _reject) => {
     const canvas = document.getElementById("canvas") as HTMLCanvasElement;
     canvas.toBlob((blob: any) => {
       resolve(blob);
-    }, 'image/png');
+    }, "image/png");
   });
 }
 

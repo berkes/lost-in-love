@@ -1,14 +1,16 @@
 body {
-  font-family: Fuzzy Bubbles, cursive;
+  font-family:
+    Fuzzy Bubbles,
+    cursive;
   background-color: #f5f5f5;
 }
 
 @font-face {
-    font-family: 'Fuzzy Bubbles';
-    src: url('/FuzzyBubbles-Regular.woff2') format('woff2');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Fuzzy Bubbles";
+  src: url("/FuzzyBubbles-Regular.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
 }
 
 a {
@@ -234,5 +236,4 @@ dialog {
     width: 100%;
     margin-bottom: 16px;
   }
-
 }
