@@ -1,7 +1,7 @@
 import p5 from "p5";
 import seedrandom from "seedrandom";
 import { shareLink, writeNotification } from "./share";
-import { encodeData, decodeData } from "./obfuscation";
+import { encodeData, decodeData, garbleText } from "./obfuscation";
 
 type ColorType = "HSL" | "BW";
 const colorType = "HSL" as ColorType;
@@ -64,6 +64,7 @@ const searchParams = new URLSearchParams(window.location.search);
 // Try to get obfuscated data first, fall back to individual parameters for backward compatibility
 const obfuscatedData = searchParams.get("data");
 let me: string, you: string, message: string;
+let shouldGarble = false;
 
 if (obfuscatedData) {
   try {
@@ -71,6 +72,7 @@ if (obfuscatedData) {
     me = decoded.me || "Romeo";
     you = decoded.you || "Juliet";
     message = decoded.message || "";
+    shouldGarble = true; // Garble when loading from obfuscated URL
   } catch (error) {
     console.error(
       "Failed to decode obfuscated data, falling back to individual parameters:",
@@ -91,7 +93,7 @@ const seed = `${me} - ${you}`;
 const meField: HTMLInputElement = document.getElementById(
   "me",
 ) as HTMLInputElement;
-meField.value = me;
+meField.value = shouldGarble ? garbleText(me) : me;
 const youField: HTMLInputElement = document.getElementById(
   "you",
 ) as HTMLInputElement;
@@ -100,7 +102,7 @@ const messageField: HTMLInputElement = document.getElementById(
   "message",
 ) as HTMLInputElement;
 if (messageField) {
-  messageField.value = message;
+  messageField.value = shouldGarble ? garbleText(message) : message;
 }
 
 const aboutLink = document.getElementById("about") as HTMLAnchorElement;
@@ -130,7 +132,7 @@ if (mazeForm) {
     const baseUrl = new URL(window.location.origin + window.location.pathname);
     baseUrl.searchParams.set("data", obfuscatedData);
 
-    // Navigate to the obfuscated URL
+    // Navigate to the obfuscated URL without garbling
     window.location.href = baseUrl.toString();
   });
 }
@@ -483,7 +485,8 @@ class Maze {
     p.fill(this.colors.foregroundColor);
     p.textSize(10);
     p.textAlign(p.RIGHT, p.BOTTOM);
-    let text = `${me} ♥ ${you} at http://love.berk.es`;
+    let displayMe = shouldGarble ? garbleText(me) : me;
+    let text = `${displayMe} ♥ ${you} at http://love.berk.es`;
     p.text(text, this.width - margin.x * 2, this.height - margin.y);
     p.pop();
 
