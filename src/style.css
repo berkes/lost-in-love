@@ -53,13 +53,24 @@ form .button-group {
 }
 
 form label {
-  width: 40px;
+  width: 62px;
+  align-self: baseline;
   text-align: right;
   margin-right: 16px;
+  margin-top: 8px;
   font-size: 16px;
 }
 
 form input[type="text"] {
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  font-size: 16px;
+  font-family: inherit;
+}
+
+form textarea {
+  width: 100%;
   padding: 8px 12px;
   border: none;
   border-bottom: 1px solid rgba(0, 0, 0, 0.2);

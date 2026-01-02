@@ -1,5 +1,7 @@
 import p5 from "p5";
 import seedrandom from "seedrandom";
+import { shareLink, writeNotification } from "./share";
+import { encodeData, decodeData } from "./obfuscation";
 
 type ColorType = "HSL" | "BW";
 const colorType = "HSL" as ColorType;
@@ -54,21 +56,73 @@ function calcCanvasSize(): number {
   return Math.min(size - 32, 450);
 }
 
-// Get "me" and "you" url parameters
+// Get "me", "you", and "message" url parameters
 const searchParams = new URLSearchParams(window.location.search);
-const me = searchParams.get("me")?.trim() || "Romeo";
-const you = searchParams.get("you")?.trim() || "Juliet";
+
+// Try to get obfuscated data first, fall back to individual parameters for backward compatibility
+const obfuscatedData = searchParams.get("data");
+let me: string, you: string, message: string;
+
+if (obfuscatedData) {
+  try {
+    const decoded = decodeData(obfuscatedData);
+    me = decoded.me || "Romeo";
+    you = decoded.you || "Juliet";
+    message = decoded.message || "";
+  } catch (error) {
+    console.error("Failed to decode obfuscated data, falling back to individual parameters:", error);
+    me = searchParams.get("me")?.trim() || "Romeo";
+    you = searchParams.get("you")?.trim() || "Juliet";
+    message = searchParams.get("message")?.trim() || "";
+  }
+} else {
+  // Backward compatibility with individual parameters
+  me = searchParams.get("me")?.trim() || "Romeo";
+  you = searchParams.get("you")?.trim() || "Juliet";
+  message = searchParams.get("message")?.trim() || "";
+}
+
 const seed = `${me} - ${you}`;
 const meField: HTMLInputElement = document.getElementById("me") as HTMLInputElement;
 meField.value = me;
 const youField: HTMLInputElement = document.getElementById("you") as HTMLInputElement;
 youField.value = you;
+const messageField: HTMLInputElement = document.getElementById("message") as HTMLInputElement;
+if (messageField) {
+  messageField.value = message;
+}
 
 const aboutLink = document.getElementById("about") as HTMLAnchorElement;
 aboutLink.addEventListener("click", () => {
   const modal = document.getElementById("about-modal") as HTMLDialogElement;
   modal?.showModal();
 });
+
+// Handle form submission to create obfuscated URLs
+const mazeForm = document.getElementById("mazeForm") as HTMLFormElement;
+if (mazeForm) {
+  mazeForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    
+    const meField = document.getElementById("me") as HTMLInputElement;
+    const youField = document.getElementById("you") as HTMLInputElement;
+    const messageField = document.getElementById("message") as HTMLInputElement;
+    
+    const me = meField.value.trim() || "Romeo";
+    const you = youField.value.trim() || "Juliet";
+    const message = messageField.value.trim();
+    
+    // Create obfuscated data
+    const obfuscatedData = encodeData({ me, you, message });
+    
+    // Create URL with obfuscated data
+    const baseUrl = new URL(window.location.origin + window.location.pathname);
+    baseUrl.searchParams.set("data", obfuscatedData);
+    
+    // Navigate to the obfuscated URL
+    window.location.href = baseUrl.toString();
+  });
+}
 const modalClose = document.querySelector("#about-modal button") as HTMLButtonElement;
 modalClose.addEventListener("click", () => {
   const modal = document.getElementById("about-modal") as HTMLDialogElement;
@@ -604,27 +658,7 @@ async function copyToClipboard() {
   });
 }
 
-function shareLink() {
-  const meField: HTMLInputElement = document.getElementById("me") as HTMLInputElement;
-  const me = meField.value;
-  const youField: HTMLInputElement = document.getElementById("you") as HTMLInputElement;
-  const you = youField.value;
-  const url = new URL(window.location.href);
-  const data = {
-    title: `Lost in Love for ${me} and ${you}`,
-    text: `Lost in Love unique maze for ${me} and ${you}`,
-    url: url.toString(),
-  };
-  if (navigator.canShare(data)) {
-    navigator.share(data);
-  } else {
-    writeNotification("Web Share not supported", "error");
-    const text = `${data.text} - ${data.url}`;
-    navigator.clipboard.writeText(text).then(() => {
-      writeNotification("Link copied to clipboard", "info");
-    });
-  }
-}
+
 
 function canvasAsBlob(): Promise<Blob> {
   return new Promise((resolve, _reject) => {
@@ -637,14 +671,4 @@ function canvasAsBlob(): Promise<Blob> {
 
 function saveImage(p: p5, from: string, to: string) {
   p.saveCanvas(`maze-${from}-${to}`, "png");
-}
-
-function writeNotification(message: string, type: string = "info") {
-  const notification = document.getElementById("notification") as HTMLElement;
-  notification.className = type;
-  notification.innerHTML = message;
-
-  if (type === "error") {
-    console.error(message);
-  }
 }
