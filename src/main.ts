@@ -1,7 +1,8 @@
 import p5 from "p5";
 import seedrandom from "seedrandom";
 import { shareLink, writeNotification } from "./share";
-import { encodeData, decodeData, garbleText } from "./obfuscation";
+import { encodeData, garbleText } from "./obfuscation";
+import { AppState } from "./models";
 
 type ColorType = "HSL" | "BW";
 const colorType = "HSL" as ColorType;
@@ -38,8 +39,8 @@ const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
       const downloadButton = document.getElementById(
         "save",
       ) as HTMLButtonElement;
-      downloadButton.addEventListener("click", () => saveImage(p, me, you));
-      maze = new Maze(18, 18, 4, colors, rng, p.width, p.height);
+      downloadButton.addEventListener("click", () => saveImage(p, appState.me, appState.you));
+      maze = new Maze(12, 12, 4, colors, rng, p.width, p.height);
     };
 
     p.draw = () => {
@@ -58,51 +59,76 @@ function calcCanvasSize(): number {
   return Math.min(size - 32, 450);
 }
 
-// Get "me", "you", and "message" url parameters
+// Initialize application state
 const searchParams = new URLSearchParams(window.location.search);
+const appState = AppState.fromSearchParams(searchParams);
 
-// Try to get obfuscated data first, fall back to individual parameters for backward compatibility
-const obfuscatedData = searchParams.get("data");
-let me: string, you: string, message: string;
-let shouldGarble = false;
-
-if (obfuscatedData) {
-  try {
-    const decoded = decodeData(obfuscatedData);
-    me = decoded.me || "Romeo";
-    you = decoded.you || "Juliet";
-    message = decoded.message || "";
-    shouldGarble = true; // Garble when loading from obfuscated URL
-  } catch (error) {
-    console.error(
-      "Failed to decode obfuscated data, falling back to individual parameters:",
-      error,
-    );
-    me = searchParams.get("me")?.trim() || "Romeo";
-    you = searchParams.get("you")?.trim() || "Juliet";
-    message = searchParams.get("message")?.trim() || "";
-  }
+// Setup the appropriate mode based on state
+if (appState.mode === 'recipient') {
+  setupRecipientMode();
 } else {
-  // Backward compatibility with individual parameters
-  me = searchParams.get("me")?.trim() || "Romeo";
-  you = searchParams.get("you")?.trim() || "Juliet";
-  message = searchParams.get("message")?.trim() || "";
+  setupSenderMode();
 }
 
-const seed = `${me} - ${you}`;
+const seed = `${appState.me} - ${appState.you}`;
+
 const meField: HTMLInputElement = document.getElementById(
   "me",
 ) as HTMLInputElement;
-meField.value = shouldGarble ? garbleText(me) : me;
+meField.value = appState.shouldGarbleText() ? garbleText(appState.me) : appState.me;
 const youField: HTMLInputElement = document.getElementById(
   "you",
 ) as HTMLInputElement;
-youField.value = you;
+youField.value = appState.you;
 const messageField: HTMLInputElement = document.getElementById(
   "message",
 ) as HTMLInputElement;
 if (messageField) {
-  messageField.value = shouldGarble ? garbleText(message) : message;
+  messageField.value = appState.shouldGarbleText() ? garbleText(appState.message) : appState.message;
+}
+
+function setupSenderMode() {
+  const form = document.getElementById("mazeForm") as HTMLFormElement;
+  if (form) {
+    // Enable all form fields
+    const inputs = form.querySelectorAll("input, textarea");
+    inputs.forEach((input) => {
+      input.removeAttribute("readonly");
+      input.removeAttribute("disabled");
+    });
+
+    const submitButtons = form.querySelectorAll("button");
+    submitButtons.forEach((button) => {
+      button.classList.remove("hidden");
+    });
+  }
+
+  const link = document.querySelector("a#new");
+  if (link) {
+    link.classList.add("hidden");
+  }
+}
+
+function setupRecipientMode() {
+  const form = document.getElementById("mazeForm") as HTMLFormElement;
+  if (form) {
+    // Make form read-only
+    const inputs = form.querySelectorAll("input, textarea");
+    inputs.forEach((input) => {
+      input.setAttribute("readonly", "true");
+      input.setAttribute("disabled", "true");
+    });
+
+    const submitButtons = form.querySelectorAll("button");
+    submitButtons.forEach((button) => {
+      button.classList.add("hidden");
+    });
+  }
+  
+  const link = document.querySelector("a#new");
+  if (link) {
+    link.classList.remove("hidden");
+  }
 }
 
 const aboutLink = document.getElementById("about") as HTMLAnchorElement;
@@ -125,8 +151,11 @@ if (mazeForm) {
     const you = youField.value.trim() || "Juliet";
     const message = messageField.value.trim();
 
+    // Create new state with form values
+    const newState = appState.withFormValues(me, you, message);
+
     // Create obfuscated data
-    const obfuscatedData = encodeData({ me, you, message });
+    const obfuscatedData = encodeData({ me: newState.me, you: newState.you, message: newState.message });
 
     // Create URL with obfuscated data
     const baseUrl = new URL(window.location.origin + window.location.pathname);
@@ -144,7 +173,7 @@ modalClose.addEventListener("click", () => {
   modal?.close();
 });
 
-setTitle(me, you);
+setTitle(appState.me, appState.you);
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 let rng = seedrandom(seed);
 new p5(createSketch(rng, canvas));
@@ -485,8 +514,8 @@ class Maze {
     p.fill(this.colors.foregroundColor);
     p.textSize(10);
     p.textAlign(p.RIGHT, p.BOTTOM);
-    let displayMe = shouldGarble ? garbleText(me) : me;
-    let text = `${displayMe} ♥ ${you} at http://love.berk.es`;
+    let displayMe = appState.shouldGarbleText() ? garbleText(appState.me) : appState.me;
+    let text = `${displayMe} ♥ ${appState.you} at http://love.berk.es`;
     p.text(text, this.width - margin.x * 2, this.height - margin.y);
     p.pop();
 

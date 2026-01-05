@@ -80,7 +80,10 @@ form textarea {
   font-family: inherit;
 }
 
-form button {
+form button, form a.button {
+  box-sizing: border-box;
+  width: 100%;
+  display: inline-block;
   margin-top: 0;
   padding: 8px 16px;
   background-color: rgba(0, 0, 0, 0.7);
@@ -90,6 +93,8 @@ form button {
   cursor: pointer;
   font-size: 16px;
   font-family: inherit;
+  text-decoration: none;
+  text-align: center;
 }
 
 form button:hover {
@@ -100,6 +105,11 @@ form button:hover {
 form button:disabled {
   background-color: rgba(0, 0, 0, 0.2);
   cursor: progress;
+}
+
+form a.hidden,
+form button.hidden {
+  display: none;
 }
 
 #notification {
@@ -183,10 +193,6 @@ dialog {
     width: calc(100% - 40px);
   }
 
-  form button {
-    width: 100%;
-  }
-
   form .button-group {
     margin-top: 32px;
   }
@@ -232,8 +238,7 @@ dialog {
     width: calc(100% - 40px);
   }
 
-  form button {
-    width: 100%;
+  form button, form a.button {
     margin-bottom: 16px;
   }
 }
