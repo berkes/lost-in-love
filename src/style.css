@@ -178,6 +178,35 @@ dialog {
 
     border-radius: 6px;
   }
+  #canvas.vibrate-right {
+    animation: vibrate-right 0.1s ease-in-out infinite;
+  }
+  #canvas.vibrate-left {
+    animation: vibrate-left 0.1s ease-in-out infinite;
+  }
+  #canvas.vibrate-down {
+    animation: vibrate-down 0.1s ease-in-out infinite;
+  }
+  #canvas.vibrate-up {
+    animation: vibrate-up 0.1s ease-in-out infinite;
+  }
+
+  @keyframes vibrate-right {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(4px); }
+  }
+  @keyframes vibrate-left {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(-4px); }
+  }
+  @keyframes vibrate-down {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(4px); }
+  }
+  @keyframes vibrate-up {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
 
   form {
     margin-top: 0;

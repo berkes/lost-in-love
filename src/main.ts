@@ -1,4 +1,4 @@
-import p5, { Color } from "p5";
+import p5 from "p5";
 import seedrandom from "seedrandom";
 import { shareLink, writeNotification } from "./share";
 import { encodeData, garbleText } from "./obfuscation";
@@ -41,6 +41,31 @@ const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
       ) as HTMLButtonElement;
       downloadButton.addEventListener("click", () => saveImage(p, appState.me, appState.you));
       maze = new Maze(12, 12, 4, colors, rng, p.width, p.height);
+      
+      document.addEventListener("keydown", (event) => {
+        switch (event.key) {
+          case "ArrowUp":
+            if (!maze.tryMoveActiveCell(CellMovement.UP)) {
+              vibrateCanvas(canvas, CellMovement.UP);
+            }
+            break;
+          case "ArrowRight":
+            if (!maze.tryMoveActiveCell(CellMovement.RIGHT)) {
+              vibrateCanvas(canvas, CellMovement.RIGHT);
+            }
+            break;
+          case "ArrowDown":
+            if (!maze.tryMoveActiveCell(CellMovement.DOWN)) {
+              vibrateCanvas(canvas, CellMovement.DOWN);
+            }
+            break;
+          case "ArrowLeft":
+            if (!maze.tryMoveActiveCell(CellMovement.LEFT)) {
+              vibrateCanvas(canvas, CellMovement.LEFT);
+            }
+            break;
+        }
+      });
     };
 
     p.draw = () => {
@@ -49,6 +74,35 @@ const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
     };
   };
 };
+
+function vibrateCanvas(canvas: HTMLCanvasElement, direction: CellMovement) {
+  let className = "";
+  switch (direction) {
+    case CellMovement.LEFT:
+      className = "vibrate-left";
+      break;
+      
+    case CellMovement.RIGHT:
+      className = "vibrate-right";
+      break;
+      
+    case CellMovement.UP:
+      className = "vibrate-up";
+      break;
+      
+    case CellMovement.DOWN:
+      className = "vibrate-down";
+      break;
+      
+    default:
+      return;
+  }
+  
+  canvas.classList.add(className);
+  setTimeout(() => {
+    canvas.classList.remove(className);
+  }, 200);
+}
 
 function calcCanvasSize(): number {
   // For large screens, maximize to 450px
@@ -208,7 +262,6 @@ function enableButtons() {
   if (saveButton) {
     saveButton.disabled = false;
   }
-  // Event Listener for Save Button is added where we canm pass the p5 instance
 }
 
 function setTitle(me: string, you: string) {
@@ -369,6 +422,55 @@ class Cell implements CellInterface {
   }
 }
 
+enum CellMovement {
+  UP,
+  RIGHT,
+  DOWN,
+  LEFT
+}
+
+class ActiveCell {
+  constructor(
+    public col: number,
+    public row: number,
+    public width: number,
+    public height: number,
+    public colorScheme: ColorScheme,
+  ) {
+  }
+ 
+  draw(p5: p5) {
+    // Need to adjust x,y and width, to adjust for missing borders on this cell
+    const padding = [this.height / 4, this.width / 4, this.height / 4, this.width / 4];
+    const x = (this.col * this.width) + padding[1];
+    const y = (this.row * this.height) + padding[0];
+    const cellWidth = this.width - (padding[1] + padding[3]);
+    const cellHeight = this.height - (padding[0] + padding[2]);
+    p5.push();
+    p5.noStroke();
+    p5.fill(this.colorScheme.highlightColor);
+    p5.rect(x, y, cellWidth, cellHeight);
+    p5.pop();
+  } 
+  
+  move(direction: CellMovement) {
+    switch (direction) {
+      case (CellMovement.UP):
+        this.row -= 1;
+        break;
+      case (CellMovement.RIGHT):
+        this.col += 1;
+        break;
+      case (CellMovement.DOWN):
+        this.row += 1;
+        break;
+      case (CellMovement.LEFT):
+        this.col -= 1;
+        break;
+    }
+  }
+}
+
 enum IconPlacement {
   CENTER,
   TOPBORDER,
@@ -449,198 +551,6 @@ class Heart {
 }
 
 // Main Maze class to handle the generation and drawing of the maze
-class ActiveCell {
-  private trail: Set<number> = new Set();
-
-  constructor(
-    public col: number,
-    public row: number,
-    private maze: Maze,
-  ) {
-    this.addToTrail();
-  }
-
-  private addToTrail() {
-    const idx = this.maze.index(this.col, this.row);
-    if (idx !== null) {
-      this.trail.add(idx);
-    }
-  }
-
-  canMoveTo(col: number, row: number): boolean {
-    const currentIdx = this.maze.index(this.col, this.row);
-    const targetIdx = this.maze.index(col, row);
-    
-    if (currentIdx === null || targetIdx === null) {
-      return false;
-    }
-
-    const currentCell = this.maze.cells[currentIdx];
-    
-    // Check if there's a wall blocking the move
-    const dx = col - this.col;
-    const dy = row - this.row;
-
-    switch (true) {
-      case dx === 1: // Moving right
-        return !currentCell.rightWall;
-      case dx === -1: // Moving left
-        return !currentCell.leftWall;
-      case dy === 1: // Moving down
-        return !currentCell.bottomWall;
-      case dy === -1: // Moving up
-        return !currentCell.topWall;
-      default:
-        return false;
-    }
-  }
-
-  draw(p: p5) {
-    const cellWidth = this.maze.cellWidth();
-    const cellHeight = this.maze.cellHeight();
-
-    // Draw the trail
-    p.push();
-    p.fill(this.maze.colors.highlightColor);
-    p.noStroke();
-    this.trail.forEach((idx) => {
-      const cell = this.maze.cells[idx];
-      const x = cell.col * cellWidth;
-      const y = cell.row * cellHeight;
-      p.rect(x, y, cellWidth, cellHeight);
-    });
-    p.pop();
-
-    // Draw the active cell with a distinct appearance
-    p.push();
-    p.fill(this.maze.colors.highlightColor);
-    p.noStroke();
-    const x = this.col * cellWidth;
-    const y = this.row * cellHeight;
-    p.rect(x, y, cellWidth, cellHeight);
-    p.pop();
-  }
-}
-
-class InteractionOverlay {
-  constructor(
-    private activeCell: ActiveCell,
-    private maze: Maze,
-  ) {}
-
-  draw(p: p5) {
-    const cellWidth = this.maze.cellWidth();
-    const cellHeight = this.maze.cellHeight();
-    const x = this.activeCell.col * cellWidth;
-    const y = this.activeCell.row * cellHeight;
-    const centerX = x + cellWidth / 2;
-    const centerY = y + cellHeight / 2;
-
-    p.push();
-    
-    // Draw quarter circles with arrows
-    this.drawQuarter(p, centerX, centerY, cellWidth, cellHeight, 'top');
-    this.drawQuarter(p, centerX, centerY, cellWidth, cellHeight, 'right');
-    this.drawQuarter(p, centerX, centerY, cellWidth, cellHeight, 'bottom');
-    this.drawQuarter(p, centerX, centerY, cellWidth, cellHeight, 'left');
-    
-    p.pop();
-  }
-
-  private drawQuarter(
-    p: p5,
-    centerX: number,
-    centerY: number,
-    cellWidth: number,
-    cellHeight: number,
-    direction: 'top' | 'right' | 'bottom' | 'left'
-  ) {
-    const radius = Math.min(cellWidth, cellHeight) * 5;
-    
-    p.push();
-    const fillColor: Color = p.color(360, 360, 360, 0.4);
-    p.fill(fillColor);
-    p.noStroke();
-    
-    const topLeftAngle = 5*p.PI/4;
-    const topRightAngle = 7*p.PI/4;
-    const bottomRightAngle = p.PI/4;
-    const bottomLeftAngle = 3*p.PI/4;
-    
-    const offset = 2;
-    
-    // Draw quarter circle arc
-    switch (direction) {
-      case 'top':
-        p.arc(centerX, centerY - offset, radius, radius, topLeftAngle, topRightAngle);
-        this.drawArrow(p, centerX, centerY - radius / 3, 'up');
-        break;
-      case 'right':
-        p.arc(centerX + offset, centerY, radius, radius, topRightAngle, bottomRightAngle);
-        this.drawArrow(p, centerX + radius / 3, centerY, 'right');
-        break;
-      case 'bottom':
-        p.arc(centerX, centerY + offset, radius, radius, bottomRightAngle, bottomLeftAngle);
-        this.drawArrow(p, centerX, centerY + radius / 3, 'down');
-        break;
-      case 'left':
-        p.arc(centerX - offset, centerY, radius, radius, bottomLeftAngle, topLeftAngle);
-        this.drawArrow(p, centerX - radius / 3, centerY, 'left');
-        break;
-    }
-    
-    p.pop();
-  }
-
-  private drawArrow(
-    p: p5,
-    x: number,
-    y: number,
-    direction: 'up' | 'down' | 'left' | 'right'
-  ) {
-    const arrowSize = 20;
-    
-    p.push();
-    const arrowColor: Color = p.color(360, 360, 360, 0.8);
-    p.fill(arrowColor);
-    p.noStroke();
-    
-    // Draw arrow triangle
-    switch (direction) {
-      case 'up':
-        p.triangle(
-          x, y - arrowSize / 2,
-          x - arrowSize / 2, y + arrowSize / 2,
-          x + arrowSize / 2, y + arrowSize / 2
-        );
-        break;
-      case 'down':
-        p.triangle(
-          x, y + arrowSize / 2,
-          x - arrowSize / 2, y - arrowSize / 2,
-          x + arrowSize / 2, y - arrowSize / 2
-        );
-        break;
-      case 'left':
-        p.triangle(
-          x - arrowSize / 2, y,
-          x + arrowSize / 2, y - arrowSize / 2,
-          x + arrowSize / 2, y + arrowSize / 2
-        );
-        break;
-      case 'right':
-        p.triangle(
-          x + arrowSize / 2, y,
-          x - arrowSize / 2, y - arrowSize / 2,
-          x - arrowSize / 2, y + arrowSize / 2
-        );
-        break;
-    }
-    
-    p.pop();
-  }
-}
-
 class Maze {
   cells: Cell[] = [];
   stack: number[] = [];
@@ -648,8 +558,7 @@ class Maze {
   centerIcon: Heart | null = null;
   borderIcon: Heart | null = null;
   activeCell: ActiveCell | null = null;
-  overlay: InteractionOverlay | null = null;
-
+  
   constructor(
     public readonly cols: number = 0,
     public readonly rows: number = 0,
@@ -703,10 +612,8 @@ class Maze {
     // Draw icons if they exist
     this.centerIcon?.draw(p);
     this.borderIcon?.draw(p);
-
-    // Draw active cell and overlay if they exist
+    
     this.activeCell?.draw(p);
-    this.overlay?.draw(p);
 
     // Add a love.berk.es url to the bottom right corner
     p.fill(this.colors.foregroundColor);
@@ -719,7 +626,8 @@ class Maze {
 
     if (this.borderIcon) {
       // Stop the animation, the maze is complete
-      p.noLoop();
+      // TODO: differentiate between sender and recipient mode on when to stop animating
+      //p.noLoop();
       enableButtons();
     } else {
       // Update the maze generation
@@ -819,16 +727,6 @@ class Maze {
           );
         }
 
-        // Initialize the active cell at the start position (center of maze)
-        if (!this.activeCell) {
-          const startCells = this.cells.filter(cell => cell.isStart);
-          if (startCells.length > 0) {
-            const startCell = startCells[0];
-            this.activeCell = new ActiveCell(startCell.col, startCell.row, this);
-            this.overlay = new InteractionOverlay(this.activeCell, this);
-          }
-        }
-
         this.current = null;
       }
     } else {
@@ -843,6 +741,16 @@ class Maze {
           startCol,
           this.cellHeight(),
           this.colors,
+        );
+      }
+      
+      if (!this.activeCell) {
+        this.activeCell = new ActiveCell(
+          startCol,
+          startRow,
+          this.cellHeight(),
+          this.cellWidth(),
+          this.colors
         );
       }
 
@@ -877,6 +785,43 @@ class Maze {
 
       this.current = lastIdx;
     }
+  }
+  
+  public tryMoveActiveCell(direction: CellMovement): boolean {
+    if (!this.activeCell) return false;
+    
+    // Look at the walls for the cell at the active cell's position
+    const cellIdx = this.activeCell.col + this.activeCell.row * this.cols;
+    const cell = this.cells[cellIdx];
+    if (cell) {
+      switch (direction) {
+        case CellMovement.UP:
+          if (!cell.topWall) {
+            this.activeCell!.move(direction);
+            return true;
+          }
+          break;
+        case CellMovement.RIGHT:
+          if (!cell.rightWall) {
+            this.activeCell!.move(direction);
+            return true;
+          }
+          break;
+        case CellMovement.DOWN:
+          if (!cell.bottomWall) {
+            this.activeCell!.move(direction);
+            return true;
+          }
+          break;
+        case CellMovement.LEFT:
+          if (!cell.leftWall) {
+            this.activeCell!.move(direction);
+            return true;
+          }
+          break;
+      }
+    }
+    return false;
   }
 
   private randomRange(min: number, max: number): number {
