@@ -1,4 +1,4 @@
-import p5 from "p5";
+import p5, { Color } from "p5";
 import seedrandom from "seedrandom";
 import { shareLink, writeNotification } from "./share";
 import { encodeData, garbleText } from "./obfuscation";
@@ -449,12 +449,206 @@ class Heart {
 }
 
 // Main Maze class to handle the generation and drawing of the maze
+class ActiveCell {
+  private trail: Set<number> = new Set();
+
+  constructor(
+    public col: number,
+    public row: number,
+    private maze: Maze,
+  ) {
+    this.addToTrail();
+  }
+
+  private addToTrail() {
+    const idx = this.maze.index(this.col, this.row);
+    if (idx !== null) {
+      this.trail.add(idx);
+    }
+  }
+
+  canMoveTo(col: number, row: number): boolean {
+    const currentIdx = this.maze.index(this.col, this.row);
+    const targetIdx = this.maze.index(col, row);
+    
+    if (currentIdx === null || targetIdx === null) {
+      return false;
+    }
+
+    const currentCell = this.maze.cells[currentIdx];
+    
+    // Check if there's a wall blocking the move
+    const dx = col - this.col;
+    const dy = row - this.row;
+
+    switch (true) {
+      case dx === 1: // Moving right
+        return !currentCell.rightWall;
+      case dx === -1: // Moving left
+        return !currentCell.leftWall;
+      case dy === 1: // Moving down
+        return !currentCell.bottomWall;
+      case dy === -1: // Moving up
+        return !currentCell.topWall;
+      default:
+        return false;
+    }
+  }
+
+  draw(p: p5) {
+    const cellWidth = this.maze.cellWidth();
+    const cellHeight = this.maze.cellHeight();
+
+    // Draw the trail
+    p.push();
+    p.fill(this.maze.colors.highlightColor);
+    p.noStroke();
+    this.trail.forEach((idx) => {
+      const cell = this.maze.cells[idx];
+      const x = cell.col * cellWidth;
+      const y = cell.row * cellHeight;
+      p.rect(x, y, cellWidth, cellHeight);
+    });
+    p.pop();
+
+    // Draw the active cell with a distinct appearance
+    p.push();
+    p.fill(this.maze.colors.highlightColor);
+    p.noStroke();
+    const x = this.col * cellWidth;
+    const y = this.row * cellHeight;
+    p.rect(x, y, cellWidth, cellHeight);
+    p.pop();
+  }
+}
+
+class InteractionOverlay {
+  constructor(
+    private activeCell: ActiveCell,
+    private maze: Maze,
+  ) {}
+
+  draw(p: p5) {
+    const cellWidth = this.maze.cellWidth();
+    const cellHeight = this.maze.cellHeight();
+    const x = this.activeCell.col * cellWidth;
+    const y = this.activeCell.row * cellHeight;
+    const centerX = x + cellWidth / 2;
+    const centerY = y + cellHeight / 2;
+
+    p.push();
+    
+    // Draw quarter circles with arrows
+    this.drawQuarter(p, centerX, centerY, cellWidth, cellHeight, 'top');
+    this.drawQuarter(p, centerX, centerY, cellWidth, cellHeight, 'right');
+    this.drawQuarter(p, centerX, centerY, cellWidth, cellHeight, 'bottom');
+    this.drawQuarter(p, centerX, centerY, cellWidth, cellHeight, 'left');
+    
+    p.pop();
+  }
+
+  private drawQuarter(
+    p: p5,
+    centerX: number,
+    centerY: number,
+    cellWidth: number,
+    cellHeight: number,
+    direction: 'top' | 'right' | 'bottom' | 'left'
+  ) {
+    const radius = Math.min(cellWidth, cellHeight) * 5;
+    
+    p.push();
+    const fillColor: Color = p.color(360, 360, 360, 0.4);
+    p.fill(fillColor);
+    p.noStroke();
+    
+    const topLeftAngle = 5*p.PI/4;
+    const topRightAngle = 7*p.PI/4;
+    const bottomRightAngle = p.PI/4;
+    const bottomLeftAngle = 3*p.PI/4;
+    
+    const offset = 2;
+    
+    // Draw quarter circle arc
+    switch (direction) {
+      case 'top':
+        p.arc(centerX, centerY - offset, radius, radius, topLeftAngle, topRightAngle);
+        this.drawArrow(p, centerX, centerY - radius / 3, 'up');
+        break;
+      case 'right':
+        p.arc(centerX + offset, centerY, radius, radius, topRightAngle, bottomRightAngle);
+        this.drawArrow(p, centerX + radius / 3, centerY, 'right');
+        break;
+      case 'bottom':
+        p.arc(centerX, centerY + offset, radius, radius, bottomRightAngle, bottomLeftAngle);
+        this.drawArrow(p, centerX, centerY + radius / 3, 'down');
+        break;
+      case 'left':
+        p.arc(centerX - offset, centerY, radius, radius, bottomLeftAngle, topLeftAngle);
+        this.drawArrow(p, centerX - radius / 3, centerY, 'left');
+        break;
+    }
+    
+    p.pop();
+  }
+
+  private drawArrow(
+    p: p5,
+    x: number,
+    y: number,
+    direction: 'up' | 'down' | 'left' | 'right'
+  ) {
+    const arrowSize = 20;
+    
+    p.push();
+    const arrowColor: Color = p.color(360, 360, 360, 0.8);
+    p.fill(arrowColor);
+    p.noStroke();
+    
+    // Draw arrow triangle
+    switch (direction) {
+      case 'up':
+        p.triangle(
+          x, y - arrowSize / 2,
+          x - arrowSize / 2, y + arrowSize / 2,
+          x + arrowSize / 2, y + arrowSize / 2
+        );
+        break;
+      case 'down':
+        p.triangle(
+          x, y + arrowSize / 2,
+          x - arrowSize / 2, y - arrowSize / 2,
+          x + arrowSize / 2, y - arrowSize / 2
+        );
+        break;
+      case 'left':
+        p.triangle(
+          x - arrowSize / 2, y,
+          x + arrowSize / 2, y - arrowSize / 2,
+          x + arrowSize / 2, y + arrowSize / 2
+        );
+        break;
+      case 'right':
+        p.triangle(
+          x + arrowSize / 2, y,
+          x - arrowSize / 2, y - arrowSize / 2,
+          x - arrowSize / 2, y + arrowSize / 2
+        );
+        break;
+    }
+    
+    p.pop();
+  }
+}
+
 class Maze {
   cells: Cell[] = [];
   stack: number[] = [];
   current: number | null = null;
   centerIcon: Heart | null = null;
   borderIcon: Heart | null = null;
+  activeCell: ActiveCell | null = null;
+  overlay: InteractionOverlay | null = null;
 
   constructor(
     public readonly cols: number = 0,
@@ -509,6 +703,10 @@ class Maze {
     // Draw icons if they exist
     this.centerIcon?.draw(p);
     this.borderIcon?.draw(p);
+
+    // Draw active cell and overlay if they exist
+    this.activeCell?.draw(p);
+    this.overlay?.draw(p);
 
     // Add a love.berk.es url to the bottom right corner
     p.fill(this.colors.foregroundColor);
@@ -619,6 +817,16 @@ class Maze {
             this.colors,
             placement,
           );
+        }
+
+        // Initialize the active cell at the start position (center of maze)
+        if (!this.activeCell) {
+          const startCells = this.cells.filter(cell => cell.isStart);
+          if (startCells.length > 0) {
+            const startCell = startCells[0];
+            this.activeCell = new ActiveCell(startCell.col, startCell.row, this);
+            this.overlay = new InteractionOverlay(this.activeCell, this);
+          }
         }
 
         this.current = null;
