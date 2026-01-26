@@ -22,6 +22,12 @@ jobs:
           cache: "npm"
           cache-dependency-path: "package-lock.json"
 
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
@@ -30,27 +36,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
 
-      - name: Install dependencies
-        run: npm ci
-
       - name: Build project
         run: npm run build
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: dist-files
-          path: dist/
-          retention-days: 7
+          path: ./dist
 
-      - name: Set up S3cmd cli tool
-        uses: s3-actions/s3cmd@v2.0.0
-        with:
-          provider: scaleway
-          region: nl-ams
-          access_key: ${{ secrets.SCALEWAY_ACCESS_KEY }}
-          secret_key: ${{ secrets.SCALEWAY_SECRET_KEY }}
-
-      - name: Deploy to object storage
-        run: |
-          s3cmd sync --recursive --delete-removed --acl-public --guess-mime-type dist/* s3://love.berk.es/
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
