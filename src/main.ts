@@ -45,22 +45,30 @@ const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
       document.addEventListener("keydown", (event) => {
         switch (event.key) {
           case "ArrowUp":
-            if (!maze.tryMoveActiveCell(CellMovement.UP)) {
+            if (maze.tryMoveActiveCell(CellMovement.UP)) {
+              p.redraw();
+            } else {
               vibrateCanvas(canvas, CellMovement.UP);
             }
             break;
           case "ArrowRight":
-            if (!maze.tryMoveActiveCell(CellMovement.RIGHT)) {
+            if (maze.tryMoveActiveCell(CellMovement.RIGHT)) {
+              p.redraw();
+            } else {
               vibrateCanvas(canvas, CellMovement.RIGHT);
             }
             break;
           case "ArrowDown":
-            if (!maze.tryMoveActiveCell(CellMovement.DOWN)) {
+            if (maze.tryMoveActiveCell(CellMovement.DOWN)) {
+              p.redraw();
+            } else {
               vibrateCanvas(canvas, CellMovement.DOWN);
             }
             break;
           case "ArrowLeft":
-            if (!maze.tryMoveActiveCell(CellMovement.LEFT)) {
+            if (maze.tryMoveActiveCell(CellMovement.LEFT)) {
+              p.redraw();
+            } else {
               vibrateCanvas(canvas, CellMovement.LEFT);
             }
             break;
@@ -69,7 +77,9 @@ const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
     };
 
     p.draw = () => {
-      p.background(maze.colors.backgroundColor);
+      if (!maze.done) {
+        p.background(maze.colors.backgroundColor);
+      }
       maze.draw(p);
     };
   };
@@ -430,44 +440,100 @@ enum CellMovement {
 }
 
 class ActiveCell {
+  leftx: number;
+  rightx: number;
+  topy: number;
+  bottomy: number;
+  private width: number;
+  private height: number;
+
   constructor(
-    public col: number,
-    public row: number,
-    public width: number,
-    public height: number,
+    col: number,
+    row: number,
+    fullWidth: number,
+    fullHeight: number,
     public colorScheme: ColorScheme,
   ) {
+    this.width = fullWidth / 2;
+    this.height = fullHeight / 2;
+    this.leftx = col * fullWidth + this.width / 2;
+    this.rightx = this.leftx + this.width;
+    this.topy = row * fullHeight + this.height / 2;
+    this.bottomy = this.topy + this.height;
+  }
+
+  center(): [number, number] {
+    return [(this.leftx + this.rightx) / 2, (this.topy + this.bottomy) / 2];
   }
  
   draw(p5: p5) {
-    // Need to adjust x,y and width, to adjust for missing borders on this cell
-    const padding = [this.height / 4, this.width / 4, this.height / 4, this.width / 4];
-    const x = (this.col * this.width) + padding[1];
-    const y = (this.row * this.height) + padding[0];
-    const cellWidth = this.width - (padding[1] + padding[3]);
-    const cellHeight = this.height - (padding[0] + padding[2]);
+    const [centerX, centerY] = this.center();
+    const color = this.colorScheme.highlightColor;
+    const newH = p5.hue(color);
+    const newS = p5.saturation(color);
+    const newL = p5.lightness(color);
+    const translucent = p5.color(newH, newS, newL, 0.2);
+
     p5.push();
     p5.noStroke();
-    p5.fill(this.colorScheme.highlightColor);
-    p5.rect(x, y, cellWidth, cellHeight);
+    p5.fill(translucent);
+
+    p5.circle(centerX, centerY, this.width);
+
     p5.pop();
-  } 
-  
-  move(direction: CellMovement) {
+  }
+
+  tryMove(direction: CellMovement, cell: Cell): boolean {
     switch (direction) {
-      case (CellMovement.UP):
-        this.row -= 1;
+      case CellMovement.UP:
+        if (!cell.topWall || this.canMoveUpWithin(cell)) {
+          this.moveY(-this.height);
+          return true;
+        }
         break;
-      case (CellMovement.RIGHT):
-        this.col += 1;
+      case CellMovement.RIGHT:
+        if (!cell.rightWall || this.canMoveRightWithin(cell)) {
+          this.moveX(+this.width);
+          return true;
+        }
         break;
-      case (CellMovement.DOWN):
-        this.row += 1;
+      case CellMovement.DOWN:
+        if (!cell.bottomWall || this.canMoveDownWithin(cell)) {
+          this.moveY(+this.height);
+          return true;
+        }
         break;
-      case (CellMovement.LEFT):
-        this.col -= 1;
+      case CellMovement.LEFT:
+        if (!cell.leftWall || this.canMoveLeftWithin(cell)) {
+          this.moveX(-this.width);
+          return true;
+        }
         break;
     }
+    return false;
+  }
+
+  canMoveUpWithin(cell: Cell): boolean {
+    return this.topy - this.height >= cell.y();
+  }
+  canMoveRightWithin(cell: Cell): boolean {
+    return this.rightx + this.width <= cell.x() + cell.width;
+  }
+  canMoveDownWithin(cell: Cell): boolean {
+    return this.bottomy + this.height <= cell.y() + cell.height;
+  }
+  canMoveLeftWithin(cell: Cell): boolean {
+    return this.leftx - this.width >= cell.x();
+  }
+
+  moveX(by: number) {
+    this.rightx += by;
+    this.leftx += by;
+  }
+
+  moveY(by: number) {
+    this.topy += by;
+    this.bottomy += by;
   }
 }
 
@@ -558,7 +624,8 @@ class Maze {
   centerIcon: Heart | null = null;
   borderIcon: Heart | null = null;
   activeCell: ActiveCell | null = null;
-  
+  public done: boolean = false;
+
   constructor(
     public readonly cols: number = 0,
     public readonly rows: number = 0,
@@ -627,8 +694,9 @@ class Maze {
     if (this.borderIcon) {
       // Stop the animation, the maze is complete
       // TODO: differentiate between sender and recipient mode on when to stop animating
-      //p.noLoop();
+      this.done = true;
       enableButtons();
+      p.noLoop();
     } else {
       // Update the maze generation
       this.update();
@@ -779,6 +847,25 @@ class Maze {
           cell.rightWall = false;
           cell.bottomWall = false;
           cell.leftWall = false;
+
+          // re-enable the walls around the starting area
+          // Top row,
+          if (dy === -1) {
+            cell.topWall = true;
+          }
+          // Bottom row
+          if (dy === 1) {
+            cell.bottomWall = true;
+          }
+          // Left column
+          if (dx === -1) {
+            cell.leftWall = true;
+          }
+          // Right column
+          if (dx === 1) {
+            cell.rightWall = true;
+          }
+
           lastIdx = idx;
         }
       });
@@ -788,40 +875,23 @@ class Maze {
   }
   
   public tryMoveActiveCell(direction: CellMovement): boolean {
+    if (!this.done) return true;
     if (!this.activeCell) return false;
-    
-    // Look at the walls for the cell at the active cell's position
-    const cellIdx = this.activeCell.col + this.activeCell.row * this.cols;
-    const cell = this.cells[cellIdx];
+
+    const [activeCellx, activeCelly] = this.activeCell.center();
+    const cell = this.cellAt(activeCellx, activeCelly);
+
     if (cell) {
-      switch (direction) {
-        case CellMovement.UP:
-          if (!cell.topWall) {
-            this.activeCell!.move(direction);
-            return true;
-          }
-          break;
-        case CellMovement.RIGHT:
-          if (!cell.rightWall) {
-            this.activeCell!.move(direction);
-            return true;
-          }
-          break;
-        case CellMovement.DOWN:
-          if (!cell.bottomWall) {
-            this.activeCell!.move(direction);
-            return true;
-          }
-          break;
-        case CellMovement.LEFT:
-          if (!cell.leftWall) {
-            this.activeCell!.move(direction);
-            return true;
-          }
-          break;
-      }
+      return this.activeCell!.tryMove(direction, cell);
     }
     return false;
+  }
+
+  private cellAt(x: number, y: number): Cell | undefined {
+    const col = Math.floor(x / this.cellWidth());
+    const row = Math.floor(y / this.cellHeight());
+    const idx = row * this.cols + col;
+    return this.cells[idx];
   }
 
   private randomRange(min: number, max: number): number {
