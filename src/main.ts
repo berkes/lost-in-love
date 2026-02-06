@@ -3,7 +3,12 @@ import seedrandom from "seedrandom";
 import { shareLink, writeNotification } from "./share";
 import { encodeData, garbleText } from "./obfuscation";
 import { AppState } from "./appstate";
-import { ColorType, createColorScheme, ColorScheme, createTranslucentColor } from "./color";
+import {
+  ColorType,
+  createColorScheme,
+  ColorScheme,
+  createTranslucentColor,
+} from "./color";
 
 const colorType = "HSL" as ColorType;
 
@@ -29,85 +34,58 @@ const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
       );
       maze = new Maze(12, 12, 4, colors, rng, p.width, p.height);
 
+      // Handle movement input from keyboard, mouse, or touch
+      const handleMovement = (direction: CellMovement) => {
+        if (!maze.done) return;
+
+        if (maze.tryMoveActiveCell(direction)) {
+          p.redraw();
+        } else {
+          vibrateCanvas(canvas, direction);
+        }
+      };
+
+      // Keyboard arrow keys
       document.addEventListener("keydown", (event) => {
-        switch (event.key) {
-          case "ArrowUp":
-            if (maze.tryMoveActiveCell(CellMovement.UP)) {
-              p.redraw();
-            } else {
-              vibrateCanvas(canvas, CellMovement.UP);
-            }
-            break;
-          case "ArrowRight":
-            if (maze.tryMoveActiveCell(CellMovement.RIGHT)) {
-              p.redraw();
-            } else {
-              vibrateCanvas(canvas, CellMovement.RIGHT);
-            }
-            break;
-          case "ArrowDown":
-            if (maze.tryMoveActiveCell(CellMovement.DOWN)) {
-              p.redraw();
-            } else {
-              vibrateCanvas(canvas, CellMovement.DOWN);
-            }
-            break;
-          case "ArrowLeft":
-            if (maze.tryMoveActiveCell(CellMovement.LEFT)) {
-              p.redraw();
-            } else {
-              vibrateCanvas(canvas, CellMovement.LEFT);
-            }
-            break;
+        const keyToDirection: Record<string, CellMovement> = {
+          ArrowUp: CellMovement.UP,
+          ArrowRight: CellMovement.RIGHT,
+          ArrowDown: CellMovement.DOWN,
+          ArrowLeft: CellMovement.LEFT,
+        };
+
+        const direction = keyToDirection[event.key];
+        if (direction !== undefined) {
+          handleMovement(direction);
         }
       });
 
-      // Add tap/click event listener for the canvas
+      // Mouse click
       canvas.addEventListener("click", (event) => {
-        if (!maze.done) return;
-
-        // Get click coordinates relative to canvas
         const rect = canvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
-
-        // Detect which tap area was clicked
-        const direction = detectTapArea(x, y, p.width, p.height);
-
-        if (direction !== null) {
-          // Try to move the active cell in the detected direction
-          if (maze.tryMoveActiveCell(direction)) {
-            p.redraw();
-          } else {
-            vibrateCanvas(canvas, direction);
-          }
-        }
+        handlePointerEvent(x, y);
       });
 
-      // Add touch event listener for mobile devices
+      // Touch (prevent default to avoid double-tap issues)
       canvas.addEventListener("touchend", (event) => {
+        event.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const x = event.changedTouches[0].clientX - rect.left;
+        const y = event.changedTouches[0].clientY - rect.top;
+        handlePointerEvent(x, y);
+      });
+
+      // Handle pointer events with coordinates
+      const handlePointerEvent = (x: number, y: number) => {
         if (!maze.done) return;
 
-        // Prevent default touch behavior
-        event.preventDefault();
-
-        // Get touch coordinates relative to canvas
-        const rect = canvas.getBoundingClientRect();
-        const touch = event.changedTouches[0];
-        const x = touch.clientX - rect.left;
-        const y = touch.clientY - rect.top;
-
-        // Detect which tap area was touched
         const direction = detectTapArea(x, y, p.width, p.height);
         if (direction !== null) {
-          // Try to move the active cell in the detected direction
-          if (maze.tryMoveActiveCell(direction)) {
-            p.redraw();
-          } else {
-            vibrateCanvas(canvas, direction);
-          }
+          handleMovement(direction);
         }
-      });
+      };
     };
 
     p.draw = () => {
@@ -115,8 +93,6 @@ const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
         p.background(maze.colors.backgroundColor);
       }
       maze.draw(p);
-
-
     };
   };
 };
@@ -154,41 +130,25 @@ function vibrateCanvas(canvas: HTMLCanvasElement, direction: CellMovement) {
  * Detects which tap area was clicked based on click coordinates
  * Returns the corresponding CellMovement direction or null if not in a tap area
  */
-function detectTapArea(x: number, y: number, width: number, height: number): CellMovement | null {
+function detectTapArea(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): CellMovement | null {
   // Check if click is in the tap areas
   // Use proportional areas based on actual canvas dimensions
 
   // Calculate tap area size as a percentage of canvas dimensions
   const tapAreaSize = Math.floor(width * 0.2); // 20% of canvas width
 
-  console.log(`Click: (${x}, ${y}) | Canvas: (${width}, ${height}) | Tap area size: ${tapAreaSize}`);
-  console.log(`Top check: ${y} < ${tapAreaSize} = ${y < tapAreaSize}`);
-  console.log(`Bottom check: ${y} > ${height - tapAreaSize} = ${y > height - tapAreaSize}`);
-  console.log(`Left check: ${x} < ${tapAreaSize} = ${x < tapAreaSize}`);
-  console.log(`Right check: ${x} > ${width - tapAreaSize} = ${x > width - tapAreaSize}`);
+  if (y < tapAreaSize) return CellMovement.UP;
+  if (y > height - tapAreaSize) return CellMovement.DOWN;
+  if (x < tapAreaSize) return CellMovement.LEFT;
+  if (x > width - tapAreaSize) return CellMovement.RIGHT;
 
-  // Top tap area (top 20%)
-  if (y < tapAreaSize) {
-    return CellMovement.UP;
-  }
-  // Bottom tap area (bottom 20%)
-  else if (y > height - tapAreaSize) {
-    return CellMovement.DOWN;
-  }
-  // Left tap area (left 20%)
-  else if (x < tapAreaSize) {
-    return CellMovement.LEFT;
-  }
-  // Right tap area (right 20%)
-  else if (x > width - tapAreaSize) {
-    return CellMovement.RIGHT;
-  }
-
-  // Not in a tap area (middle 60%)
   return null;
 }
-
-
 
 function calcCanvasSize(): number {
   // For large screens, maximize to 450px
@@ -500,7 +460,10 @@ class ActiveCell {
 
   draw(p5: p5) {
     const [centerX, centerY] = this.center();
-    const translucent = createTranslucentColor(p5, this.colorScheme.highlightColor);
+    const translucent = createTranslucentColor(
+      p5,
+      this.colorScheme.highlightColor,
+    );
 
     p5.push();
     p5.noStroke();
