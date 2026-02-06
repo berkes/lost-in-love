@@ -2,9 +2,9 @@ import p5 from "p5";
 import seedrandom from "seedrandom";
 import { shareLink, writeNotification } from "./share";
 import { encodeData, garbleText } from "./obfuscation";
-import { AppState } from "./models";
+import { AppState } from "./appstate";
+import { ColorType, createColorScheme, ColorScheme, createTranslucentColor } from "./color";
 
-type ColorType = "HSL" | "BW";
 const colorType = "HSL" as ColorType;
 
 const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
@@ -17,22 +17,7 @@ const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
       const size = calcCanvasSize();
       p.createCanvas(size, size, canvas);
       p.colorMode(p.HSL);
-      switch (colorType) {
-        case "HSL":
-          colors = new HSLColorScheme(
-            p.color(336, 80, 47, 100),
-            p.color(40, 100, 57, 100),
-            p.color(336, 80, 47, 100),
-            rng,
-            p,
-          );
-          break;
-        case "BW":
-          colors = new BWColorScheme(p);
-          break;
-        default:
-          throw new Error("Invalid colorType");
-      }
+      colors = createColorScheme(colorType, rng, p);
 
       setCardColor(colors.backgroundColor);
       disableButtons();
@@ -297,66 +282,6 @@ function setCardColor(color: p5.Color) {
   }
 }
 
-interface ColorScheme {
-  foregroundColor: p5.Color;
-  backgroundColor: p5.Color;
-  highlightColor: p5.Color;
-}
-
-class BWColorScheme implements ColorScheme {
-  public foregroundColor: p5.Color;
-  public backgroundColor: p5.Color;
-  public highlightColor: p5.Color;
-
-  constructor(p: p5) {
-    this.foregroundColor = p.color(0);
-    this.backgroundColor = p.color(255);
-    this.highlightColor = p.color(0);
-  }
-}
-
-class HSLColorScheme implements ColorScheme {
-  public foregroundColor: p5.Color;
-  public backgroundColor: p5.Color;
-  public highlightColor: p5.Color;
-
-  constructor(
-    private readonly baseForegroundColor: p5.Color,
-    private readonly baseBackgroundColor: p5.Color,
-    private readonly baseHighlightColor: p5.Color,
-    private readonly rng: seedrandom.PRNG,
-    private readonly p: p5,
-  ) {
-    this.foregroundColor = this.randomizeForegroundColor();
-    this.backgroundColor = this.randomizeBackgroundColor();
-    this.highlightColor = this.randomizeHighlightColor();
-  }
-
-  private randomizeForegroundColor(): p5.Color {
-    const color = this.baseForegroundColor;
-    const newH = this.p.hue(color) * (0.95 + this.rng() * 0.1); // 95-105% of original hue
-    const newS = this.p.saturation(color) * (0.8 + this.rng() * 0.2); // 80-100% of original saturation
-    const newL = this.p.lightness(color) * (1.0 + this.rng() * 0.4); // 100-120% of original lightness
-    return this.p.color(newH, newS, newL);
-  }
-
-  private randomizeBackgroundColor(): p5.Color {
-    const color = this.baseBackgroundColor;
-    const newH = this.p.hue(color) * (0.95 + this.rng() * 0.1); // 95-105% of original hue
-    const newS = this.p.saturation(color) * (0.6 + this.rng() * 0.4); // 60-100% of original saturation
-    const newL = this.p.lightness(color) * (1.0 + this.rng() * 0.2); // 100-120% of original lightness
-    return this.p.color(newH, newS, newL);
-  }
-
-  private randomizeHighlightColor(): p5.Color {
-    const color = this.baseHighlightColor;
-    const newH = this.p.hue(color) * (0.95 + this.rng() * 0.1); // 95-105% of original hue
-    const newS = this.p.saturation(color) * (0.8 + this.rng() * 0.2); // 80-100% of original saturation
-    const newL = this.p.lightness(color) * (1.0 + this.rng() * 0.2); // 100-120% of original lightness
-    return this.p.color(newH, newS, newL);
-  }
-}
-
 // Cell interface
 interface CellInterface {
   topWall: boolean;
@@ -486,11 +411,7 @@ class ActiveCell {
 
   draw(p5: p5) {
     const [centerX, centerY] = this.center();
-    const color = this.colorScheme.highlightColor;
-    const newH = p5.hue(color);
-    const newS = p5.saturation(color);
-    const newL = p5.lightness(color);
-    const translucent = p5.color(newH, newS, newL, 0.2);
+    const translucent = createTranslucentColor(p5, this.colorScheme.highlightColor);
 
     p5.push();
     p5.noStroke();
