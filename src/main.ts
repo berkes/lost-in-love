@@ -61,6 +61,53 @@ const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
             break;
         }
       });
+
+      // Add tap/click event listener for the canvas
+      canvas.addEventListener("click", (event) => {
+        if (!maze.done) return;
+
+        // Get click coordinates relative to canvas
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        // Detect which tap area was clicked
+        const direction = detectTapArea(x, y, p.width, p.height);
+
+        if (direction !== null) {
+          // Try to move the active cell in the detected direction
+          if (maze.tryMoveActiveCell(direction)) {
+            p.redraw();
+          } else {
+            vibrateCanvas(canvas, direction);
+          }
+        }
+      });
+
+      // Add touch event listener for mobile devices
+      canvas.addEventListener("touchend", (event) => {
+        if (!maze.done) return;
+
+        // Prevent default touch behavior
+        event.preventDefault();
+
+        // Get touch coordinates relative to canvas
+        const rect = canvas.getBoundingClientRect();
+        const touch = event.changedTouches[0];
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+
+        // Detect which tap area was touched
+        const direction = detectTapArea(x, y, p.width, p.height);
+        if (direction !== null) {
+          // Try to move the active cell in the detected direction
+          if (maze.tryMoveActiveCell(direction)) {
+            p.redraw();
+          } else {
+            vibrateCanvas(canvas, direction);
+          }
+        }
+      });
     };
 
     p.draw = () => {
@@ -68,6 +115,8 @@ const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
         p.background(maze.colors.backgroundColor);
       }
       maze.draw(p);
+
+
     };
   };
 };
@@ -100,6 +149,46 @@ function vibrateCanvas(canvas: HTMLCanvasElement, direction: CellMovement) {
     canvas.classList.remove(className);
   }, 200);
 }
+
+/**
+ * Detects which tap area was clicked based on click coordinates
+ * Returns the corresponding CellMovement direction or null if not in a tap area
+ */
+function detectTapArea(x: number, y: number, width: number, height: number): CellMovement | null {
+  // Check if click is in the tap areas
+  // Use proportional areas based on actual canvas dimensions
+
+  // Calculate tap area size as a percentage of canvas dimensions
+  const tapAreaSize = Math.floor(width * 0.2); // 20% of canvas width
+
+  console.log(`Click: (${x}, ${y}) | Canvas: (${width}, ${height}) | Tap area size: ${tapAreaSize}`);
+  console.log(`Top check: ${y} < ${tapAreaSize} = ${y < tapAreaSize}`);
+  console.log(`Bottom check: ${y} > ${height - tapAreaSize} = ${y > height - tapAreaSize}`);
+  console.log(`Left check: ${x} < ${tapAreaSize} = ${x < tapAreaSize}`);
+  console.log(`Right check: ${x} > ${width - tapAreaSize} = ${x > width - tapAreaSize}`);
+
+  // Top tap area (top 20%)
+  if (y < tapAreaSize) {
+    return CellMovement.UP;
+  }
+  // Bottom tap area (bottom 20%)
+  else if (y > height - tapAreaSize) {
+    return CellMovement.DOWN;
+  }
+  // Left tap area (left 20%)
+  else if (x < tapAreaSize) {
+    return CellMovement.LEFT;
+  }
+  // Right tap area (right 20%)
+  else if (x > width - tapAreaSize) {
+    return CellMovement.RIGHT;
+  }
+
+  // Not in a tap area (middle 60%)
+  return null;
+}
+
+
 
 function calcCanvasSize(): number {
   // For large screens, maximize to 450px
