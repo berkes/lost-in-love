@@ -39,9 +39,11 @@ const createSketch = (rng: seedrandom.PRNG, canvas: HTMLCanvasElement): any => {
       const downloadButton = document.getElementById(
         "save",
       ) as HTMLButtonElement;
-      downloadButton.addEventListener("click", () => saveImage(p, appState.me, appState.you));
+      downloadButton.addEventListener("click", () =>
+        saveImage(p, appState.me, appState.you),
+      );
       maze = new Maze(12, 12, 4, colors, rng, p.width, p.height);
-      
+
       document.addEventListener("keydown", (event) => {
         switch (event.key) {
           case "ArrowUp":
@@ -91,23 +93,23 @@ function vibrateCanvas(canvas: HTMLCanvasElement, direction: CellMovement) {
     case CellMovement.LEFT:
       className = "vibrate-left";
       break;
-      
+
     case CellMovement.RIGHT:
       className = "vibrate-right";
       break;
-      
+
     case CellMovement.UP:
       className = "vibrate-up";
       break;
-      
+
     case CellMovement.DOWN:
       className = "vibrate-down";
       break;
-      
+
     default:
       return;
   }
-  
+
   canvas.classList.add(className);
   setTimeout(() => {
     canvas.classList.remove(className);
@@ -128,7 +130,7 @@ const searchParams = new URLSearchParams(window.location.search);
 const appState = AppState.fromSearchParams(searchParams);
 
 // Setup the appropriate mode based on state
-if (appState.mode === 'recipient') {
+if (appState.mode === "recipient") {
   setupRecipientMode();
 } else {
   setupSenderMode();
@@ -139,7 +141,9 @@ const seed = `${appState.me} - ${appState.you}`;
 const meField: HTMLInputElement = document.getElementById(
   "me",
 ) as HTMLInputElement;
-meField.value = appState.shouldGarbleText() ? garbleText(appState.me) : appState.me;
+meField.value = appState.shouldGarbleText()
+  ? garbleText(appState.me)
+  : appState.me;
 const youField: HTMLInputElement = document.getElementById(
   "you",
 ) as HTMLInputElement;
@@ -148,7 +152,9 @@ const messageField: HTMLInputElement = document.getElementById(
   "message",
 ) as HTMLInputElement;
 if (messageField) {
-  messageField.value = appState.shouldGarbleText() ? garbleText(appState.message) : appState.message;
+  messageField.value = appState.shouldGarbleText()
+    ? garbleText(appState.message)
+    : appState.message;
 }
 
 function setupSenderMode() {
@@ -188,7 +194,7 @@ function setupRecipientMode() {
       button.classList.add("hidden");
     });
   }
-  
+
   const link = document.querySelector("a#new");
   if (link) {
     link.classList.remove("hidden");
@@ -219,7 +225,11 @@ if (mazeForm) {
     const newState = appState.withFormValues(me, you, message);
 
     // Create obfuscated data
-    const obfuscatedData = encodeData({ me: newState.me, you: newState.you, message: newState.message });
+    const obfuscatedData = encodeData({
+      me: newState.me,
+      you: newState.you,
+      message: newState.message,
+    });
 
     // Create URL with obfuscated data
     const baseUrl = new URL(window.location.origin + window.location.pathname);
@@ -379,9 +389,17 @@ class Cell implements CellInterface {
     public colorScheme: ColorScheme,
   ) {}
 
+  x(): number {
+    return this.col * this.width;
+  }
+
+  y(): number {
+    return this.row * this.height;
+  }
+
   draw(p: p5) {
-    const x = this.col * this.width;
-    const y = this.row * this.height;
+    const x = this.x();
+    const y = this.y();
 
     if (!this.visited) {
       p.push();
@@ -436,7 +454,7 @@ enum CellMovement {
   UP,
   RIGHT,
   DOWN,
-  LEFT
+  LEFT,
 }
 
 class ActiveCell {
@@ -465,7 +483,7 @@ class ActiveCell {
   center(): [number, number] {
     return [(this.leftx + this.rightx) / 2, (this.topy + this.bottomy) / 2];
   }
- 
+
   draw(p5: p5) {
     const [centerX, centerY] = this.center();
     const color = this.colorScheme.highlightColor;
@@ -673,20 +691,25 @@ class Maze {
     p.push();
     p.translate(margin.x, margin.y);
 
+    this.activeCell?.draw(p);
+    if (this.done) {
+      return;
+    }
+
     // Draw all cells
     this.cells.forEach((cell) => cell.draw(p));
 
     // Draw icons if they exist
     this.centerIcon?.draw(p);
     this.borderIcon?.draw(p);
-    
-    this.activeCell?.draw(p);
 
     // Add a love.berk.es url to the bottom right corner
     p.fill(this.colors.foregroundColor);
     p.textSize(10);
     p.textAlign(p.RIGHT, p.BOTTOM);
-    let displayMe = appState.shouldGarbleText() ? garbleText(appState.me) : appState.me;
+    let displayMe = appState.shouldGarbleText()
+      ? garbleText(appState.me)
+      : appState.me;
     let text = `${displayMe} ♥ ${appState.you} at http://love.berk.es`;
     p.text(text, this.width - margin.x * 2, this.height - margin.y);
     p.pop();
@@ -811,14 +834,14 @@ class Maze {
           this.colors,
         );
       }
-      
+
       if (!this.activeCell) {
         this.activeCell = new ActiveCell(
           startCol,
           startRow,
           this.cellHeight(),
           this.cellWidth(),
-          this.colors
+          this.colors,
         );
       }
 
@@ -873,7 +896,7 @@ class Maze {
       this.current = lastIdx;
     }
   }
-  
+
   public tryMoveActiveCell(direction: CellMovement): boolean {
     if (!this.done) return true;
     if (!this.activeCell) return false;
